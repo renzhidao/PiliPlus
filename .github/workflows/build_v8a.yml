@@ -40,11 +40,10 @@ jobs:
             curl -sSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o "$TMP_ZIP"
             mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools/latest"
             unzip -q "$TMP_ZIP" -d "$ANDROID_SDK_ROOT/cmdline-tools/latest"
-            mv "$ANDROID_SDK_ROOT/cmdline-tools/latest/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" || true
           fi
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
 
-      - name: Install Android SDK (34/35 build-tools)
+      - name: Install Android SDK (34/35)
         shell: bash
         run: |
           set -e
@@ -52,21 +51,6 @@ jobs:
           yes | "$SDKMANAGER" --install "platform-tools"
           yes | "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" || true
           yes | "$SDKMANAGER" --install "platforms;android-34" "build-tools;34.0.0" || true
-          # 可选：某些原生库会用到 NDK，失败不阻塞
-          yes | "$SDKMANAGER" --install "ndk;26.1.10909125" || true
-
-      - name: Ensure Flutter engine maven repo (best-effort)
-        shell: bash
-        run: |
-          set -e
-          grep -q "download.flutter.io" android/build.gradle.kts || cat >> android/build.gradle.kts <<'EOF'
-
-allprojects {
-    repositories {
-        maven(url = "https://storage.googleapis.com/download.flutter.io")
-    }
-}
-EOF
 
       - name: Bootstrap Gradle Wrapper (8.13) if missing
         shell: bash
@@ -77,12 +61,10 @@ EOF
             unzip -q /tmp/gradle.zip -d /tmp
             /tmp/gradle-8.13/bin/gradle -p android wrapper --gradle-version 8.13
           fi
-          test -f android/gradlew && test -f android/gradle/wrapper/gradle-wrapper.jar
 
       - name: Flutter pub get
         run: flutter pub get
 
-      # 强制使用 Release 签名（Secrets 优先；否则生成临时 release 证书）
       - name: Prepare release keystore (no debug watermark)
         shell: bash
         env:
@@ -95,12 +77,12 @@ EOF
           mkdir -p android/app
           if [ -n "$SIGN_KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
             echo "$SIGN_KEYSTORE_BASE64" | base64 -d > android/app/release.jks
-            cat > android/key.properties <<EOF
-storeFile=release.jks
-storePassword=$KEYSTORE_PASSWORD
-keyAlias=$KEY_ALIAS
-keyPassword=$KEY_PASSWORD
-EOF
+            {
+              echo "storeFile=release.jks"
+              echo "storePassword=$KEYSTORE_PASSWORD"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=$KEY_PASSWORD"
+            } > android/key.properties
           else
             if [ ! -f android/app/release.jks ]; then
               keytool -genkey -v -keystore android/app/release.jks \
@@ -109,12 +91,12 @@ EOF
                 -alias tempkey \
                 -dname "CN=PiliPlus, OU=CI, O=PiliPlus, L=CN, S=CN, C=CN"
             fi
-            cat > android/key.properties <<EOF
-storeFile=release.jks
-storePassword=temp123456
-keyAlias=tempkey
-keyPassword=temp123456
-EOF
+            {
+              echo "storeFile=release.jks"
+              echo "storePassword=temp123456"
+              echo "keyAlias=tempkey"
+              echo "keyPassword=temp123456"
+            } > android/key.properties
           fi
           echo "== key.properties =="; cat android/key.properties
 
@@ -143,7 +125,7 @@ EOF
             keytool -printcert -jarfile "$APK" | tee /tmp/certs.txt || true
           fi
           if grep -qi "Android Debug" /tmp/certs.txt; then
-            echo "Found debug signature! Failing to prevent debug watermark."; exit 1
+            echo "Debug signature detected"; exit 1
           fi
 
       - name: Read version from pubspec.yaml
