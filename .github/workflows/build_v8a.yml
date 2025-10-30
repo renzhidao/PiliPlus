@@ -1,7 +1,158 @@
-name: probe
-on: workflow_dispatch
+name: Build APK (arm64-v8a only, release-signed)
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
 jobs:
-t:
-runs-on: ubuntu-latest
-steps:
-- run: echo ok
+  android-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Setup Flutter from pubspec.yaml
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+          cache: true
+
+      - name: Write android/local.properties (flutter.sdk)
+        run: echo "flutter.sdk=${FLUTTER_ROOT}" > android/local.properties
+
+      - name: Ensure Android cmdline-tools and accept licenses
+        shell: bash
+        run: |
+          set -e
+          ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+          if [ ! -d "$ANDROID_SDK_ROOT/cmdline-tools/latest" ]; then
+            curl -sSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cli.zip
+            unzip -q /tmp/cli.zip -d /tmp/cli
+            mv /tmp/cli/cmdline-tools "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+          fi
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+
+      - name: Install Android SDK (platforms/build-tools 35 + 34)
+        shell: bash
+        run: |
+          set -e
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --install "platform-tools"
+          yes | "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0" || true
+          yes | "$SDKMANAGER" --install "platforms;android-34" "build-tools;34.0.0" || true
+
+      - name: Ensure Flutter engine maven repo (best-effort)
+        shell: bash
+        run: |
+          set -e
+          if ! grep -q "download.flutter.io" android/build.gradle.kts; then
+            cat >> android/build.gradle.kts <<'EOF'
+
+allprojects {
+    repositories {
+        maven(url = "https://storage.googleapis.com/download.flutter.io")
+    }
+}
+EOF
+          fi
+
+      - name: Bootstrap Gradle Wrapper (8.13) if missing
+        shell: bash
+        run: |
+          set -e
+          if [ ! -f android/gradlew ] || [ ! -f android/gradle/wrapper/gradle-wrapper.jar ]; then
+            curl -sSL https://services.gradle.org/distributions/gradle-8.13-bin.zip -o /tmp/gradle.zip
+            unzip -q /tmp/gradle.zip -d /tmp
+            /tmp/gradle-8.13/bin/gradle -p android wrapper --gradle-version 8.13
+          fi
+          test -f android/gradlew && test -f android/gradle/wrapper/gradle-wrapper.jar
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Prepare release keystore (no debug watermark)
+        shell: bash
+        env:
+          SIGN_KEYSTORE_BASE64: ${{ secrets.SIGN_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ -n "$SIGN_KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$SIGN_KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+            cat > android/key.properties <<EOF
+storeFile=app/release.jks
+storePassword=${KEYSTORE_PASSWORD}
+keyAlias=${KEY_ALIAS}
+keyPassword=${KEY_PASSWORD}
+EOF
+          else
+            if [ ! -f android/app/release.jks ]; then
+              keytool -genkey -v -keystore android/app/release.jks \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -storepass temp123456 -keypass temp123456 \
+                -alias tempkey \
+                -dname "CN=PiliPlus, OU=CI, O=PiliPlus, L=CN, S=CN, C=CN"
+            fi
+            cat > android/key.properties <<EOF
+storeFile=app/release.jks
+storePassword=temp123456
+keyAlias=tempkey
+keyPassword=temp123456
+EOF
+          fi
+
+      - name: Build APK (arm64-v8a only)
+        shell: bash
+        run: |
+          set -e
+          DEFINE_ARG=""
+          if [ -f pili_release.json ]; then
+            DEFINE_ARG="--dart-define-from-file=pili_release.json"
+          fi
+          flutter build apk --release --target-platform android-arm64 $DEFINE_ARG
+
+      - name: Verify signing is NOT debug
+        shell: bash
+        run: |
+          set -e
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          APKSIGNER=""
+          for v in 35.0.0 34.0.0; do
+            if [ -x "$ANDROID_SDK_ROOT/build-tools/$v/apksigner" ]; then APKSIGNER="$ANDROID_SDK_ROOT/build-tools/$v/apksigner"; break; fi
+          done
+          if [ -n "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/certs.txt
+          else
+            keytool -printcert -jarfile "$APK" | tee /tmp/certs.txt || true
+          fi
+          if grep -qi "Android Debug" /tmp/certs.txt; then
+            echo "Found debug signature! Failing to prevent debug watermark."; exit 1
+          fi
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(grep "^version:" pubspec.yaml | sed 's/version:[[:space:]]*//' | sed 's/+.*//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Collect artifact
+        run: |
+          mkdir -p output
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "output/PiliPlus_android_${{ steps.version.outputs.version }}_arm64-v8a.apk"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android_arm64-v8a
+          path: output/*.apk
+          if-no-files-found: error
