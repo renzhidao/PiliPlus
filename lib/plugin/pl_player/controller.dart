@@ -62,28 +62,18 @@ class PlPlayerController {
   Player? _videoPlayerController;
   VideoController? _videoController;
 
-  // 添加一个私有静态变量来保存实例
   static PlPlayerController? _instance;
 
-  // 流事件  监听播放状态变化
   StreamSubscription? _playerEventSubs;
 
-  /// [playerStatus] has a [status] observable
   final playerStatus = PlPlayerStatus(PlayerStatus.playing);
 
-  ///
   final PlPlayerDataStatus dataStatus = PlPlayerDataStatus();
 
-  // bool controlsEnabled = false;
-
-  /// 响应数据
-  /// 带有Seconds的变量只在秒数更新时更新，以避免频繁触发重绘
-  // 播放位置
   final Rx<Duration> _position = Rx(Duration.zero);
   final RxInt positionSeconds = 0.obs;
   final Rx<Duration> _sliderPosition = Rx(Duration.zero);
   final RxInt sliderPositionSeconds = 0.obs;
-  // 展示使用
   final Rx<Duration> _sliderTempPosition = Rx(Duration.zero);
   final Rx<Duration> _duration = Rx(Duration.zero);
   final Rx<Duration> durationSeconds = Duration.zero.obs;
@@ -106,7 +96,6 @@ class PlPlayerController {
   final RxBool _longPressStatus = false.obs;
   final RxBool _controlsLock = false.obs;
   final RxBool _isFullScreen = false.obs;
-  // 默认投稿视频格式
   bool isLive = false;
 
   bool _isVertical = false;
@@ -115,7 +104,7 @@ class PlPlayerController {
   late StreamSubscription<DataStatus> _dataListenerForVideoFit;
   late StreamSubscription<DataStatus> _dataListenerForEnterFullscreen;
 
-  /// 两步全屏：先竖屏沉浸式全屏，再旋转到横屏
+  // 两步全屏：先竖屏沉浸式全屏，再旋转到横屏
   bool _portraitFsFirstStep = false;
   VideoFitType? _fitBeforePortraitFs;
 
@@ -125,7 +114,6 @@ class PlPlayerController {
   }
 
   Future<void> _enterPortraitFullscreenStep() async {
-    // 仅隐藏状态栏，不改方向；临时改为 contain 以居中不裁切显示横屏视频
     hideStatusBar();
     _portraitFsFirstStep = true;
     _fitBeforePortraitFs ??= _videoFit.value;
@@ -148,16 +136,13 @@ class PlPlayerController {
     }
   }
 
-  /// 后台播放
   late final RxBool _continuePlayInBackground =
       Pref.continuePlayInBackground.obs;
 
-  ///
   final RxBool _isSliderMoving = false.obs;
   PlaylistMode _looping = PlaylistMode.none;
   bool _autoPlay = false;
 
-  // 记录历史记录
   int? _aid;
   String? _bvid;
   int? cid;
@@ -179,106 +164,77 @@ class PlPlayerController {
 
   Box setting = GStorage.setting;
 
-  // final Durations durations;
-
   String get bvid => _bvid!;
 
-  /// 数据加载监听
   Stream<DataStatus> get onDataStatusChanged => dataStatus.status.stream;
 
-  /// 播放状态监听
   Stream<PlayerStatus> get onPlayerStatusChanged => playerStatus.stream;
 
-  /// 视频时长
   Rx<Duration> get duration => _duration;
   Stream<Duration> get onDurationChanged => _duration.stream;
 
-  /// 视频当前播放位置
   Rx<Duration> get position => _position;
   Stream<Duration> get onPositionChanged => _position.stream;
 
-  /// 视频播放速度
   double get playbackSpeed => _playbackSpeed.value;
 
-  // 长按倍速
   double get longPressSpeed => _longPressSpeed.value;
 
-  /// 视频缓冲
   Rx<Duration> get buffered => _buffered;
   Stream<Duration> get onBufferedChanged => _buffered.stream;
 
-  /// [videoPlayerController] instance of Player
   Player? get videoPlayerController => _videoPlayerController;
 
-  /// [videoController] instance of Player
   VideoController? get videoController => _videoController;
 
   RxBool get isSliderMoving => _isSliderMoving;
 
-  /// 进度条位置及监听
   Rx<Duration> get sliderPosition => _sliderPosition;
   Stream<Duration> get onSliderPositionChanged => _sliderPosition.stream;
 
   Rx<Duration> get sliderTempPosition => _sliderTempPosition;
-  // Stream<Duration> get onSliderPositionChanged => _sliderPosition.stream;
 
-  /// 是否展示控制条及监听
   RxBool get showControls => _showControls;
   Stream<bool> get onShowControlsChanged => _showControls.stream;
 
-  /// 音量控制条展示/隐藏
   RxBool get showVolumeStatus => _showVolumeStatus;
   Stream<bool> get onShowVolumeStatusChanged => _showVolumeStatus.stream;
 
-  /// 亮度控制条展示/隐藏
   RxBool get showBrightnessStatus => _showBrightnessStatus;
-  Stream<bool> get onShowBrightnessChanged =>
+  Stream<bool> get onShowBrightnessStatusChanged =>
       _showBrightnessStatus.stream;
 
-  /// 音量控制条
   RxDouble get volume => _currentVolume;
   Stream<double> get onVolumeChanged => _currentVolume.stream;
   late bool isMuted = false;
 
-  /// 亮度控制条
   RxDouble get brightness => _currentBrightness;
   Stream<double> get onBrightnessChanged => _currentBrightness.stream;
 
-  /// 是否循环
   PlaylistMode get looping => _looping;
 
-  /// 是否自动播放
   bool get autoplay => _autoPlay;
 
-  /// 视频比例
   Rx<VideoFitType> get videoFit => _videoFit;
 
-  /// 后台播放
   RxBool get continuePlayInBackground => _continuePlayInBackground;
 
-  /// 听视频
   late final RxBool onlyPlayAudio = false.obs;
 
-  /// 镜像
   late final RxBool flipX = false.obs;
 
   late final RxBool flipY = false.obs;
 
-  /// 是否长按倍速
   RxBool get longPressStatus => _longPressStatus;
 
   RxBool isBuffering = true.obs;
 
-  /// 屏幕锁 为true时，关闭控制栏
   RxBool get controlsLock => _controlsLock;
 
-  /// 全屏状态
   RxBool get isFullScreen => _isFullScreen;
 
-  /// 全屏方向
   bool get isVertical => _isVertical;
 
-  /// 弹幕开关
   late final RxBool _enableShowDanmaku = Pref.enableShowDanmaku.obs;
   late final RxBool _enableShowLiveDanmaku = Pref.enableShowLiveDanmaku.obs;
   RxBool get enableShowDanmaku =>
@@ -385,11 +341,9 @@ class PlPlayerController {
     }
   }
 
-  /// 弹幕权重
   late final enableTapDm = Utils.isMobile && Pref.enableTapDm;
   late int danmakuWeight = Pref.danmakuWeight;
   late RuleFilter filters = Pref.danmakuFilterRule;
-  // 关联弹幕控制器
   DanmakuController<DanmakuExtra>? danmakuController;
   bool showDanmaku = true;
   Set<int> dmState = <int>{};
@@ -397,7 +351,6 @@ class PlPlayerController {
   late final String midHash = Crc32Xz()
       .convert(utf8.encode(Accounts.main.mid.toString()))
       .toRadixString(16);
-  // 弹幕相关配置
   late Set<int> blockTypes = Pref.danmakuBlockType;
   late bool blockColorful = blockTypes.contains(6);
   late double showArea = Pref.danmakuShowArea;
@@ -420,14 +373,13 @@ class PlPlayerController {
   late int subtitlePaddingH = Pref.subtitlePaddingH;
   late int subtitlePaddingB = Pref.subtitlePaddingB;
   late double subtitleBgOpaticy = Pref.subtitleBgOpaticy;
-  final bool showVipDanmaku = Pref.showVipDanmaku; // loop unswitching
+  final bool showVipDanmaku = Pref.showVipDanmaku;
   final bool showSpecialDanmaku = Pref.showSpecialDanmaku;
   late double subtitleStrokeWidth = Pref.subtitleStrokeWidth;
   late int subtitleFontWeight = Pref.subtitleFontWeight;
 
   late final pgcSkipType = Pref.pgcSkipType;
   late final enablePgcSkip = Pref.pgcSkipType != SkipType.disable;
-  // sponsor block
   late final bool enableSponsorBlock = Pref.enableSponsorBlock || enablePgcSkip;
   late final double blockLimit = Pref.blockLimit;
   late final blockSettings = Pref.blockSettings;
@@ -438,7 +390,6 @@ class PlPlayerController {
       .toSet();
   late final blockServer = Pref.blockServer;
 
-  // settings
   late final showFSActionItem = Pref.showFSActionItem;
   late final enableShrinkVideoSize = Pref.enableShrinkVideoSize;
   late final darkVideoPage = Pref.darkVideoPage;
@@ -489,21 +440,20 @@ class PlPlayerController {
   num get sliderScale =>
       isRelative ? duration.value.inMilliseconds * offset : offset;
 
-  // 播放顺序相关
   late PlayRepeat playRepeat = PlayRepeat.values[Pref.playRepeat];
 
   TextStyle get subTitleStyle => TextStyle(
-    height: 1.5,
-    fontSize:
-        16 * (isFullScreen.value ? subtitleFontScaleFS : subtitleFontScale),
-    letterSpacing: 0.1,
-    wordSpacing: 0.1,
-    color: Colors.white,
-    fontWeight: FontWeight.values[subtitleFontWeight],
-    backgroundColor: subtitleBgOpaticy == 0
-        ? null
-        : Colors.black.withValues(alpha: subtitleBgOpaticy),
-  );
+        height: 1.5,
+        fontSize:
+            16 * (isFullScreen.value ? subtitleFontScaleFS : subtitleFontScale),
+        letterSpacing: 0.1,
+        wordSpacing: 0.1,
+        color: Colors.white,
+        fontWeight: FontWeight.values[subtitleFontWeight],
+        backgroundColor: subtitleBgOpaticy == 0
+            ? null
+            : Colors.black.withValues(alpha: subtitleBgOpaticy),
+      );
 
   late final Rx<SubtitleViewConfiguration> subtitleConfig = _getSubConfig.obs;
 
@@ -580,11 +530,9 @@ class PlPlayerController {
   static Function? _playCallBack;
 
   static void playIfExists({bool repeat = false, bool hideControls = true}) {
-    // await _instance?.play(repeat: repeat, hideControls: hideControls);
     _playCallBack?.call();
   }
 
-  // try to get PlayerStatus
   static PlayerStatus? getPlayerStatusIfExists() {
     return _instance?.playerStatus.value;
   }
@@ -615,7 +563,6 @@ class PlPlayerController {
 
   Box video = GStorage.video;
 
-  // 添加一个私有构造函数
   PlPlayerController._() {
     if (!Accounts.heartbeat.isLogin || Pref.historyPause) {
       enableHeart = false;
@@ -636,19 +583,9 @@ class PlPlayerController {
         }
       });
     }
-
-    // _playerEventSubs = onPlayerStatusChanged.listen((PlayerStatus status) {
-    //   if (status == PlayerStatus.playing) {
-    //     WakelockPlus.enable();
-    //   } else {
-    //     WakelockPlus.disable();
-    //   }
-    // });
   }
 
-  // 获取实例 传参
   static PlPlayerController getInstance({bool isLive = false}) {
-    // 如果实例尚未创建，则创建一个新实例
     _instance ??= PlPlayerController._();
     _instance!
       ..isLive = isLive
@@ -659,23 +596,17 @@ class PlPlayerController {
   bool _processing = false;
   bool get processing => _processing;
 
-  // 初始化资源
   Future<void> setDataSource(
     DataSource dataSource, {
     bool isLive = false,
     bool autoplay = true,
-    // 默认不循环
     PlaylistMode looping = PlaylistMode.none,
-    // 初始化播放位置
     Duration? seekTo,
-    // 初始化播放速度
     double speed = 1.0,
     int? width,
     int? height,
     Duration? duration,
-    // 方向
     bool? isVertical,
-    // 记录历史记录
     int? aid,
     String? bvid,
     int? cid,
@@ -695,11 +626,7 @@ class PlPlayerController {
       this.dataSource = dataSource;
       _autoPlay = autoplay;
       _looping = looping;
-      // 初始化视频倍速
-      // _playbackSpeed.value = speed;
-      // 初始化数据加载状态
       dataStatus.status.value = DataStatus.loading;
-      // 初始化全屏方向
       _isVertical = isVertical ?? false;
       _aid = aid;
       _bvid = bvid;
@@ -720,7 +647,6 @@ class PlPlayerController {
       if (_playerCount == 0) {
         return;
       }
-      // 配置Player 音轨、字幕等等
       _videoPlayerController = await _createVideoController(
         dataSource,
         _looping,
@@ -728,7 +654,6 @@ class PlPlayerController {
         volume,
       );
       callback?.call();
-      // 获取视频时长 00:00
       _duration.value = duration ?? _videoPlayerController!.state.duration;
       _position.value = _buffered.value = _sliderPosition.value =
           seekTo ?? Duration.zero;
@@ -736,10 +661,8 @@ class PlPlayerController {
       updatePositionSecond();
       updateSliderPositionSecond();
       updateBufferedSecond();
-      // 数据加载完成
       dataStatus.status.value = DataStatus.loaded;
 
-      // listen the video player events
       startListeners();
       await _initializePlayer();
     } catch (err, stackTrace) {
@@ -772,8 +695,6 @@ class PlPlayerController {
           key.startsWith('assets/shaders/') && key.endsWith('.glsl'),
     );
 
-    // int copiedFilesCount = 0;
-
     for (var filePath in shaderFiles) {
       final fileName = filePath.split('/').last;
       final targetFile = File(path.join(shadersDirectory!.path, fileName));
@@ -785,7 +706,6 @@ class PlPlayerController {
         final data = await rootBundle.load(filePath);
         final List<int> bytes = data.buffer.asUint8List();
         await targetFile.writeAsBytes(bytes);
-        // copiedFilesCount++;
       } catch (e) {
         if (kDebugMode) debugPrint('$e');
       }
@@ -836,32 +756,28 @@ class PlPlayerController {
 
   static final loudnormRegExp = RegExp('loudnorm=([^,]+)');
 
-  // 配置播放器
   Future<Player> _createVideoController(
     DataSource dataSource,
     PlaylistMode looping,
     Duration? seekTo,
     Volume? volume,
   ) async {
-    // 每次配置时先移除监听
     removeListeners();
     isBuffering.value = false;
     buffered.value = Duration.zero;
     _heartDuration = 0;
     _position.value = Duration.zero;
-    // 初始化时清空弹幕，防止上次重叠
     danmakuController?.clear();
 
     Player player =
         _videoPlayerController ??
-        Player(
-          configuration: PlayerConfiguration(
-            // 默认缓冲 4M 大小
-            bufferSize: Pref.expandBuffer
-                ? (isLive ? 64 * 1024 * 1024 : 32 * 1024 * 1024)
-                : (isLive ? 16 * 1024 * 1024 : 4 * 1024 * 1024),
-          ),
-        );
+            Player(
+              configuration: PlayerConfiguration(
+                bufferSize: Pref.expandBuffer
+                    ? (isLive ? 64 * 1024 * 1024 : 32 * 1024 * 1024)
+                    : (isLive ? 16 * 1024 * 1024 : 4 * 1024 * 1024),
+              ),
+            );
     final pp = player.platform!;
     if (_videoPlayerController == null) {
       if (Utils.isDesktop) {
@@ -876,21 +792,14 @@ class PlPlayerController {
       );
       if (Platform.isAndroid) {
         await pp.setProperty("volume-max", "100");
-        String ao = Pref.useOpenSLES
-            ? "opensles,audiotrack"
-            : "audiotrack,opensles";
+        String ao =
+            Pref.useOpenSLES ? "opensles,audiotrack" : "audiotrack,opensles";
         await pp.setProperty("ao", ao);
       }
-      // video-sync=display-resample
       await pp.setProperty("video-sync", Pref.videoSync);
-      // vo=gpu-next & gpu-context=android & gpu-api=opengl
-      // await pp.setProperty("vo", "gpu-next");
-      // await pp.setProperty("gpu-context", "android");
-      // await pp.setProperty("gpu-api", "opengl");
       await player.setAudioTrack(AudioTrack.auto());
     }
 
-    // 音轨
     if (dataSource.audioSource?.isNotEmpty == true) {
       await pp.setProperty(
         'audio-files',
@@ -902,7 +811,6 @@ class PlPlayerController {
       await pp.setProperty('audio-files', '');
     }
 
-    // 字幕
     if (dataSource.subFiles?.isNotEmpty == true) {
       await pp.setProperty(
         'sub-files',
@@ -935,7 +843,7 @@ class PlPlayerController {
       if (volume != null && volume.isNotEmpty) {
         audioNormalization = audioNormalization.replaceFirstMapped(
           loudnormRegExp,
-          (i) =>
+              (i) =>
               'loudnorm=${volume.format(
                 Map.fromEntries(
                   i.group(1)!.split(':').map((item) {
@@ -984,17 +892,12 @@ class PlPlayerController {
         play: false,
       );
     }
-    // 音轨
-    // player.setAudioTrack(
-    //   AudioTrack.uri(dataSource.audioSource!),
-    // );
 
     return player;
   }
 
   Future<bool> refreshPlayer() async {
     if (_videoPlayerController == null) {
-      // SmartDialog.showToast('视频播放器为空，请重新进入本页面');
       return false;
     }
     if (dataSource.videoSource.isNullOrEmpty) {
@@ -1022,13 +925,10 @@ class PlPlayerController {
       play: true,
     );
     return true;
-    // seekTo(currentPos);
   }
 
-  // 开始播放
   Future<void> _initializePlayer() async {
     if (_instance == null) return;
-    // 设置倍速
     if (isLive) {
       await setPlaybackSpeed(1.0);
     } else {
@@ -1037,8 +937,6 @@ class PlPlayerController {
       }
     }
     getVideoFit();
-
-    // 自动播放
     if (_autoPlay) {
       playIfExists();
     }
@@ -1066,7 +964,6 @@ class PlPlayerController {
   final Set<Function(Duration position)> _positionListeners = {};
   final Set<Function(PlayerStatus status)> _statusListeners = {};
 
-  /// 播放事件监听
   void startListeners() {
     subscriptions = {
       videoPlayerController!.stream.playing.listen((event) {
@@ -1089,7 +986,6 @@ class PlPlayerController {
           isLive,
         );
 
-        /// 触发回调事件
         for (var element in _statusListeners) {
           element(event ? PlayerStatus.playing : PlayerStatus.paused);
         }
@@ -1101,12 +997,9 @@ class PlPlayerController {
         if (event) {
           playerStatus.value = PlayerStatus.completed;
 
-          /// 触发回调事件
           for (var element in _statusListeners) {
             element(PlayerStatus.completed);
           }
-        } else {
-          // playerStatus.value = PlayerStatus.playing;
         }
         makeHeartBeat(positionSeconds.value, type: HeartBeatType.completed);
       }),
@@ -1118,7 +1011,6 @@ class PlPlayerController {
           updateSliderPositionSecond();
         }
 
-        /// 触发回调事件
         for (var element in _positionListeners) {
           element(event);
         }
@@ -1155,8 +1047,6 @@ class PlPlayerController {
         }
         if (event.startsWith("Failed to open https://") ||
             event.startsWith("Can not open external file https://") ||
-            //tcp: ffurl_read returned 0xdfb9b0bb
-            //tcp: ffurl_read returned 0xffffff99
             event.startsWith('tcp: ffurl_read returned ')) {
           EasyThrottle.throttle(
             'videoPlayerController!.stream.error.listen',
@@ -1187,7 +1077,6 @@ class PlPlayerController {
           SmartDialog.showToast('视频加载错误, $event');
         }
       }),
-      // 媒体通知监听
       if (videoPlayerServiceHandler != null) ...[
         onPlayerStatusChanged.listen((PlayerStatus event) {
           videoPlayerServiceHandler!.onStatusChange(
@@ -1207,16 +1096,11 @@ class PlPlayerController {
     };
   }
 
-  /// 移除事件监听
   Future<void> removeListeners() async {
     await Future.wait(subscriptions.map((e) => e.cancel()));
   }
 
-  /// 跳转至指定位置
   Future<void> seekTo(Duration position, {bool isSeek = true}) async {
-    // if (position >= duration.value) {
-    //   position = duration.value - const Duration(milliseconds: 100);
-    // }
     if (_playerCount == 0) {
       return;
     }
@@ -1228,7 +1112,6 @@ class PlPlayerController {
     _heartDuration = position.inSeconds;
     if (duration.value.inSeconds != 0) {
       if (isSeek) {
-        /// 拖动进度条调节时，不等待第一帧，防止抖动
         await _videoPlayerController?.stream.buffer.first;
       }
       danmakuController?.clear();
@@ -1237,9 +1120,6 @@ class PlPlayerController {
       } catch (e) {
         if (kDebugMode) debugPrint('seek failed: $e');
       }
-      // if (playerStatus.stopped) {
-      //   play();
-      // }
     } else {
       _timerForSeek?.cancel();
       _timerForSeek = Timer.periodic(const Duration(milliseconds: 200), (
@@ -1263,7 +1143,6 @@ class PlPlayerController {
     }
   }
 
-  /// 设置倍速
   Future<void> setPlaybackSpeed(double speed) async {
     lastPlaybackSpeed = playbackSpeed;
 
@@ -1288,19 +1167,15 @@ class PlPlayerController {
     }
   }
 
-  // 还原默认速度
   double playSpeedDefault = Pref.playSpeedDefault;
   Future<void> setDefaultSpeed() async {
     await _videoPlayerController?.setRate(playSpeedDefault);
     _playbackSpeed.value = playSpeedDefault;
   }
 
-  /// 播放视频
   Future<void> play({bool repeat = false, bool hideControls = true}) async {
     if (_playerCount == 0) return;
-    // 播放时自动隐藏控制条
     controls = !hideControls;
-    // repeat为true，将从头播放
     if (repeat) {
       await seekTo(Duration.zero, isSeek: false);
     }
@@ -1312,12 +1187,10 @@ class PlPlayerController {
     playerStatus.value = PlayerStatus.playing;
   }
 
-  /// 暂停播放
   Future<void> pause({bool notify = true, bool isInterrupt = false}) async {
     await _videoPlayerController?.pause();
     playerStatus.value = PlayerStatus.paused;
 
-    // 主动暂停时让出音频焦点
     if (!isInterrupt) {
       audioSessionHandler?.setActive(false);
     }
@@ -1325,7 +1198,6 @@ class PlPlayerController {
 
   bool tripling = false;
 
-  /// 隐藏控制条
   void hideTaskControls() {
     _timer?.cancel();
     _timer = Timer(showControlDuration, () {
@@ -1336,7 +1208,6 @@ class PlPlayerController {
     });
   }
 
-  /// 调整播放时间
   void onChangedSlider(double v) {
     _sliderPosition.value = Duration(seconds: v.floor());
     updateSliderPositionSecond();
@@ -1410,17 +1281,14 @@ class PlPlayerController {
     _currentBrightness.value = brightness;
   }
 
-  /// Toggle Change the videofit accordingly
   void toggleVideoFit(VideoFitType value) {
     _videoFit.value = value;
     video.put(VideoBoxKey.cacheVideoFit, _videoFit.value.index);
   }
 
-  /// 读取fit
   int fitValue = Pref.cacheVideoFit;
   Future<void> getVideoFit() async {
     var attr = VideoFitType.values[fitValue];
-    // 由于none与scaleDown涉及视频原始尺寸，需要等待视频加载后再设置，否则尺寸会变为0，出现错误;
     if (attr == VideoFitType.none || attr == VideoFitType.scaleDown) {
       if (buffered.value == Duration.zero) {
         attr = VideoFitType.contain;
@@ -1434,14 +1302,12 @@ class PlPlayerController {
           }
         });
       }
-      // fill不应该在竖屏视频生效
     } else if (attr == VideoFitType.fill && isVertical) {
       attr = VideoFitType.contain;
     }
     _videoFit.value = attr;
   }
 
-  /// 设置后台播放
   Future<void> setBackgroundPlay(bool val) async {
     videoPlayerServiceHandler?.enableBackgroundPlay = val;
     if (!tempPlayerConf) {
@@ -1467,7 +1333,6 @@ class PlPlayerController {
     longPressTimer = null;
   }
 
-  /// 设置长按倍速状态 live模式下禁用
   Future<void> setLongPressStatus(bool val) async {
     if (isLive) {
       return;
@@ -1496,7 +1361,6 @@ class PlPlayerController {
       videoPlayerController!.state.completed ||
       (duration.value - position.value).inMilliseconds <= 50;
 
-  // 双击播放、暂停
   Future<void> onDoubleTapCenter() async {
     if (!isLive && _isCompleted) {
       await videoPlayerController!.seek(Duration.zero);
@@ -1539,20 +1403,17 @@ class PlPlayerController {
     }
     switch (type) {
       case DoubleTapType.left:
-        // 双击左边区域 👈
         onDoubleTapSeekBackward();
         break;
       case DoubleTapType.center:
         onDoubleTapCenter();
         break;
       case DoubleTapType.right:
-        // 双击右边区域 👈
         onDoubleTapSeekForward();
         break;
     }
   }
 
-  /// 关闭控制栏
   void onLockControl(bool val) {
     feedBack();
     _controlsLock.value = val;
@@ -1571,7 +1432,6 @@ class PlPlayerController {
   late final FullScreenMode mode = FullScreenMode.values[Pref.fullScreenMode];
   late final horizontalScreen = Pref.horizontalScreen;
 
-  // 全屏
   bool fsProcessing = false;
   Future<void> triggerFullScreen({
     bool status = true,
@@ -1581,16 +1441,8 @@ class PlPlayerController {
   }) async {
     if (isDesktopPip) return;
 
-    // 在“竖屏全屏第一步”里，如果收到“返回/退出”，直接退出到详情页（还原状态），不转横屏
-    if (!status && _portraitFsFirstStep && Utils.isMobile) {
-      showStatusBar();
-      _clearPortraitFullscreenStep();
-      toggleFullScreen(false);
-      return;
-    }
-
-    // 某些 UI 会重复传 status=true；若仍在第一步，则把它视为“第二次点击”，旋转到横屏
-    if (status && _portraitFsFirstStep && Utils.isMobile) {
+    // 二次点击（无论 status true/false）都从“竖屏全屏第一步”切到横屏
+    if (_portraitFsFirstStep && Utils.isMobile) {
       await landscape();
       _clearPortraitFullscreenStep();
       _isFullScreen.value = true;
@@ -1613,7 +1465,6 @@ class PlPlayerController {
       if (Utils.isMobile) {
         hideStatusBar();
 
-        // 两步全屏：设备竖屏 + 视频横向 => 先竖屏沉浸式全屏并居中显示
         if (_deviceIsPortrait && !isVertical) {
           await _enterPortraitFullscreenStep();
           fsProcessing = false;
@@ -1670,7 +1521,6 @@ class PlPlayerController {
   void removeStatusLister(Function(PlayerStatus status) listener) =>
       _statusListeners.remove(listener);
 
-  /// 截屏
   Future<Uint8List?> screenshot() async {
     final Uint8List? screenshot = await _videoPlayerController!.screenshot(
       format: 'image/png',
@@ -1678,7 +1528,6 @@ class PlPlayerController {
     return screenshot;
   }
 
-  // 记录播放记录
   Future<void> makeHeartBeat(
     int progress, {
     HeartBeatType type = HeartBeatType.playing,
@@ -1707,7 +1556,6 @@ class PlPlayerController {
     if ((durationSeconds.value - position.value).inMilliseconds > 1000) {
       isComplete = false;
     }
-    // 播放状态变化时，更新
 
     if (type == HeartBeatType.status || type == HeartBeatType.completed) {
       await VideoHttp.heartBeat(
@@ -1721,9 +1569,7 @@ class PlPlayerController {
         videoType: videoType ?? _videoType,
       );
       return;
-    }
-    // 正常播放时，间隔5秒更新一次
-    else if (progress - _heartDuration >= 5) {
+    } else if (progress - _heartDuration >= 5) {
       _heartDuration = progress;
       await VideoHttp.heartBeat(
         aid: aid ?? _aid,
@@ -1773,7 +1619,6 @@ class PlPlayerController {
 
   bool isCloseAll = false;
   Future<void> dispose() async {
-    // 每次减1，最后销毁
     cancelLongPressTimer();
     if (!isCloseAll && _playerCount > 1) {
       _playerCount -= 1;
@@ -1870,7 +1715,6 @@ class PlPlayerController {
       var res = await Request().get(
         '/x/player/videoshot',
         queryParameters: {
-          // 'aid': IdUtils.bv2av(_bvid),
           'bvid': _bvid,
           'cid': cid,
           'index': 1,
