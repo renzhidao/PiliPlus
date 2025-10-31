@@ -74,105 +74,6 @@ class PlPlayerController {
   ///
   final PlPlayerDataStatus dataStatus = PlPlayerDataStatus();
 
-
-  // 两步全屏：先竖屏沉浸式全屏，再旋转到横屏
-  bool _portraitFsFirstStep = false;
-  VideoFitType? _fitBeforePortraitFs;
-
-  bool get _deviceIsPortrait {
-    final size = Get.mediaQuery.size;
-    return size.height >= size.width;
-  }
-
-  Future<void> _enterPortraitFullscreenStep() async {
-    // 仅隐藏状态栏，不改方向；临时改为 contain 以居中不裁切显示横屏视频
-    hideStatusBar();
-    _portraitFsFirstStep = true;
-    _fitBeforePortraitFs ??= _videoFit.value;
-    if (_videoFit.value != VideoFitType.contain) {
-      _videoFit.value = VideoFitType.contain;
-    }
-    if (!_isFullScreen.value) {
-      _isFullScreen.value = true;
-      updateSubtitleStyle();
-    }
-  }
-
-  void _clearPortraitFullscreenStep() {
-    if (_portraitFsFirstStep) {
-      _portraitFsFirstStep = false;
-      if (_fitBeforePortraitFs != null) {
-        _videoFit.value = _fitBeforePortraitFs!;
-        _fitBeforePortraitFs = null;
-      }
-    }
-  }
-
-  // 两步全屏：先竖屏沉浸式全屏，再旋转到横屏
-  bool _portraitFsFirstStep = false;
-  VideoFitType? _fitBeforePortraitFs;
-
-  bool get _deviceIsPortrait {
-    final size = Get.mediaQuery.size;
-    return size.height >= size.width;
-  }
-
-  Future<void> _enterPortraitFullscreenStep() async {
-    // 仅隐藏状态栏，不改方向；临时改为 contain 以居中不裁切显示横屏视频
-    hideStatusBar();
-    _portraitFsFirstStep = true;
-    _fitBeforePortraitFs ??= _videoFit.value;
-    if (_videoFit.value != VideoFitType.contain) {
-      _videoFit.value = VideoFitType.contain;
-    }
-    if (!_isFullScreen.value) {
-      _isFullScreen.value = true;
-      updateSubtitleStyle();
-    }
-  }
-
-  void _clearPortraitFullscreenStep() {
-    if (_portraitFsFirstStep) {
-      _portraitFsFirstStep = false;
-      if (_fitBeforePortraitFs != null) {
-        _videoFit.value = _fitBeforePortraitFs!;
-        _fitBeforePortraitFs = null;
-      }
-    }
-  }
-
-  // 两步全屏：先竖屏沉浸式全屏，再旋转到横屏
-  bool _portraitFsFirstStep = false;
-  VideoFitType? _fitBeforePortraitFs;
-
-  bool get _deviceIsPortrait {
-    final size = Get.mediaQuery.size;
-    return size.height >= size.width;
-  }
-
-  Future<void> _enterPortraitFullscreenStep() async {
-    // 仅隐藏状态栏，不改方向；临时改为 contain 以居中不裁切显示横屏视频
-    hideStatusBar();
-    _portraitFsFirstStep = true;
-    _fitBeforePortraitFs ??= _videoFit.value;
-    if (_videoFit.value != VideoFitType.contain) {
-      _videoFit.value = VideoFitType.contain;
-    }
-    if (!_isFullScreen.value) {
-      _isFullScreen.value = true;
-      updateSubtitleStyle();
-    }
-  }
-
-  void _clearPortraitFullscreenStep() {
-    if (_portraitFsFirstStep) {
-      _portraitFsFirstStep = false;
-      if (_fitBeforePortraitFs != null) {
-        _videoFit.value = _fitBeforePortraitFs!;
-        _fitBeforePortraitFs = null;
-      }
-    }
-  }
   // bool controlsEnabled = false;
 
   /// 响应数据
@@ -1100,32 +1001,7 @@ class PlPlayerController {
       SmartDialog.showToast('视频源为空，请重新进入本页面');
       return false;
     }
-
-    // 在“竖屏全屏第一步”里，如果收到“返回/退出”，直接退出到详情页（还原状态），不转横屏
-    if (!status && _portraitFsFirstStep && Utils.isMobile) {
-      showStatusBar();
-      _clearPortraitFullscreenStep();
-      toggleFullScreen(false);
-      return;
-    }
-
-    // 某些 UI 会重复传 status=true；若仍在第一步，则把它视为“第二次点击”，旋转到横屏
-    if (status && _portraitFsFirstStep && Utils.isMobile) {
-      await landscape();
-      _clearPortraitFullscreenStep();
-      _isFullScreen.value = true;
-      updateSubtitleStyle();
-      return;
-    }
-
-    if (isFullScreen.value == status) return;
-        // 两步全屏：设备竖屏 + 视频横向 => 先竖屏沉浸式全屏并居中显示
-        if (_deviceIsPortrait && !isVertical) {
-          await _enterPortraitFullscreenStep();
-          fsProcessing = false;
-          return;
-        }
-        _clearPortraitFullscreenStep();
+    if (!isLive) {
       if (dataSource.audioSource.isNullOrEmpty) {
         SmartDialog.showToast('音频源为空');
       } else {
@@ -1158,32 +1034,7 @@ class PlPlayerController {
     } else {
       if (_videoPlayerController?.state.rate != _playbackSpeed.value) {
         await setPlaybackSpeed(_playbackSpeed.value);
-
-    // 在“竖屏全屏第一步”里，如果收到“返回/退出”，直接退出到详情页（还原状态），不转横屏
-    if (!status && _portraitFsFirstStep && Utils.isMobile) {
-      showStatusBar();
-      _clearPortraitFullscreenStep();
-      toggleFullScreen(false);
-      return;
-    }
-
-    // 某些 UI 会重复传 status=true；若仍在第一步，则把它视为“第二次点击”，旋转到横屏
-    if (status && _portraitFsFirstStep && Utils.isMobile) {
-      await landscape();
-      _clearPortraitFullscreenStep();
-      _isFullScreen.value = true;
-      updateSubtitleStyle();
-      return;
-    }
-
-    if (isFullScreen.value == status) return;
-        // 两步全屏：设备竖屏 + 视频横向 => 先竖屏沉浸式全屏并居中显示
-        if (_deviceIsPortrait && !isVertical) {
-          await _enterPortraitFullscreenStep();
-          fsProcessing = false;
-          return;
-        }
-        _clearPortraitFullscreenStep();
+      }
     }
     getVideoFit();
     // if (_looping) {
@@ -1216,32 +1067,7 @@ class PlPlayerController {
         } else {
           triggerFullScreen(status: true);
         }
-
-    // 在“竖屏全屏第一步”里，如果收到“返回/退出”，直接退出到详情页（还原状态），不转横屏
-    if (!status && _portraitFsFirstStep && Utils.isMobile) {
-      showStatusBar();
-      _clearPortraitFullscreenStep();
-      toggleFullScreen(false);
-      return;
-    }
-
-    // 某些 UI 会重复传 status=true；若仍在第一步，则把它视为“第二次点击”，旋转到横屏
-    if (status && _portraitFsFirstStep && Utils.isMobile) {
-      await landscape();
-      _clearPortraitFullscreenStep();
-      _isFullScreen.value = true;
-      updateSubtitleStyle();
-      return;
-    }
-
-    if (isFullScreen.value == status) return;
-        // 两步全屏：设备竖屏 + 视频横向 => 先竖屏沉浸式全屏并居中显示
-        if (_deviceIsPortrait && !isVertical) {
-          await _enterPortraitFullscreenStep();
-          fsProcessing = false;
-          return;
-        }
-        _clearPortraitFullscreenStep();
+      });
     }
   }
 
