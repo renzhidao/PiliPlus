@@ -1,3 +1,4 @@
+
 import 'dart:convert';
 
 import 'package:PiliPlus/http/api.dart';
@@ -62,7 +63,7 @@ class SearchHttp {
       'search_type': searchType.name,
       'keyword': keyword,
       'page': page,
-      if (order?.isNotEmpty == true) 'order': order,
+      if (order?.isNotEmpty == true && order != 'exact') 'order': order,
       'duration': ?duration,
       'tids': ?tids,
       'order_sort': ?orderSort,
@@ -114,8 +115,9 @@ class SearchHttp {
             case SearchType.article:
               data = SearchArticleData.fromJson(dataData);
               break;
-            // default:
-            //   break;
+            case SearchType.all:
+              // 综合页不走 searchByType，调用方会走 searchAll
+              return const Error('不支持的类型');
           }
           return Success(data);
         } catch (err) {
@@ -145,7 +147,7 @@ class SearchHttp {
     var params = await WbiSign.makSign({
       'keyword': keyword,
       'page': page,
-      if (order?.isNotEmpty == true) 'order': order,
+      if (order?.isNotEmpty == true && order != 'exact') 'order': order,
       'duration': ?duration,
       'tids': ?tids,
       'order_sort': ?orderSort,

@@ -1,3 +1,4 @@
+
 import 'dart:math';
 
 import 'package:PiliPlus/http/loading_state.dart';
@@ -26,12 +27,17 @@ class SearchVideoController
 
   @override
   void onInit() {
-    super.onInit();
+    // 默认精准（确保首轮请求即为精准）
+    order = 'exact';
+    selectedType.value = ArchiveFilterType.exact;
+
     videoDurationType = VideoDurationType.all;
     videoZoneType = VideoZoneType.all;
     DateTime now = DateTime.now();
     pubBeginDate = DateTime(now.year, now.month, 1, 0, 0, 0);
     pubEndDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    super.onInit();
 
     jump2Video();
   }
@@ -75,7 +81,7 @@ class SearchVideoController
     }
   }
 
-  final Rx<ArchiveFilterType> selectedType = ArchiveFilterType.totalrank.obs;
+  final Rx<ArchiveFilterType> selectedType = ArchiveFilterType.exact.obs;
   VideoPubTimeType? pubTimeType = VideoPubTimeType.all;
   late DateTime pubBeginDate;
   late DateTime pubEndDate;
@@ -190,8 +196,8 @@ class SearchVideoController
                                       (e == VideoPubTimeType.day
                                           ? 0
                                           : e == VideoPubTimeType.week
-                                          ? 6
-                                          : 179),
+                                              ? 6
+                                              : 179),
                                   0,
                                   0,
                                   0,

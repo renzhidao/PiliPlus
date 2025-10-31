@@ -1,3 +1,4 @@
+
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/refresh_indicator.dart';
 import 'package:PiliPlus/http/loading_state.dart';
@@ -24,13 +25,48 @@ abstract class CommonSearchPanelState<
   S extends CommonSearchPanel,
   R extends SearchNumData<T>,
   T
->
-    extends State<S>
-    with AutomaticKeepAliveClientMixin {
+> extends State<S> with AutomaticKeepAliveClientMixin {
   SearchPanelController<R, T> get controller;
 
   @override
   bool get wantKeepAlive => true;
+
+  Widget? buildExactBar(ThemeData theme) {
+    // 视频面板自带筛选条，非视频类型添加“精准”开关
+    if (widget.searchType == SearchType.video) return null;
+
+    final bool isExact = controller.order == 'exact';
+    return SliverToBoxAdapter(
+      child: Container(
+        width: double.infinity,
+        height: 36,
+        padding: const EdgeInsets.only(left: 8, right: 12),
+        color: theme.colorScheme.surface,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FilterChip(
+            label: const Text('精准'),
+            selected: isExact,
+            showCheckmark: false,
+            labelStyle: TextStyle(
+              color: isExact
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline,
+            ),
+            selectedColor: Colors.transparent,
+            backgroundColor: Colors.transparent,
+            side: BorderSide.none,
+            onSelected: (selected) async {
+              setState(() {
+                controller.order = selected ? 'exact' : '';
+              });
+              await controller.onReload();
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +79,7 @@ abstract class CommonSearchPanelState<
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
           ?buildHeader(theme),
+          ?buildExactBar(theme),
           SliverPadding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.viewPaddingOf(context).bottom + 100,
