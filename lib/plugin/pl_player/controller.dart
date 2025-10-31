@@ -115,6 +115,39 @@ class PlPlayerController {
   late StreamSubscription<DataStatus> _dataListenerForVideoFit;
   late StreamSubscription<DataStatus> _dataListenerForEnterFullscreen;
 
+  /// 两步全屏：先竖屏沉浸式全屏，再旋转到横屏
+  bool _portraitFsFirstStep = false;
+  VideoFitType? _fitBeforePortraitFs;
+
+  bool get _deviceIsPortrait {
+    final size = Get.mediaQuery.size;
+    return size.height >= size.width;
+  }
+
+  Future<void> _enterPortraitFullscreenStep() async {
+    // 仅隐藏状态栏，不改方向；临时改为 contain 以居中不裁切显示横屏视频
+    hideStatusBar();
+    _portraitFsFirstStep = true;
+    _fitBeforePortraitFs ??= _videoFit.value;
+    if (_videoFit.value != VideoFitType.contain) {
+      _videoFit.value = VideoFitType.contain;
+    }
+    if (!_isFullScreen.value) {
+      _isFullScreen.value = true;
+      updateSubtitleStyle();
+    }
+  }
+
+  void _clearPortraitFullscreenStep() {
+    if (_portraitFsFirstStep) {
+      _portraitFsFirstStep = false;
+      if (_fitBeforePortraitFs != null) {
+        _videoFit.value = _fitBeforePortraitFs!;
+        _fitBeforePortraitFs = null;
+      }
+    }
+  }
+
   /// 后台播放
   late final RxBool _continuePlayInBackground =
       Pref.continuePlayInBackground.obs;
@@ -1575,6 +1608,25 @@ class PlPlayerController {
     FullScreenMode? mode,
   }) async {
     if (isDesktopPip) return;
+
+    // 在“竖屏全屏第一步”中，如果收到“退出全屏”的请求，改为旋转到横屏
+    if (!status && _portraitFsFirstStep && Utils.isMobile) {
+      await landscape();
+      _clearPortraitFullscreenStep();
+      _isFullScreen.value = true;
+      updateSubtitleStyle();
+      return;
+    }
+
+    // 某些 UI 会重复传 status=true；若仍在第一步，则把它视为切到横屏
+    if (status && _portraitFsFirstStep && Utils.isMobile) {
+      await landscape();
+      _clearPortraitFullscreenStep();
+      _isFullScreen.value = true;
+      updateSubtitleStyle();
+      return;
+    }
+
     if (isFullScreen.value == status) return;
 
     if (fsProcessing) {
@@ -1589,6 +1641,14 @@ class PlPlayerController {
     if (status) {
       if (Utils.isMobile) {
         hideStatusBar();
+
+        // 两步全屏：设备竖屏 + 视频横向 => 先竖屏沉浸式全屏并居中显示
+        if (_deviceIsPortrait && !isVertical) {
+          await _enterPortraitFullscreenStep();
+          fsProcessing = false;
+          return;
+        }
+
         if (mode == FullScreenMode.none) {
           fsProcessing = false;
           return;
@@ -1613,6 +1673,7 @@ class PlPlayerController {
     } else {
       if (Utils.isMobile) {
         showStatusBar();
+        _clearPortraitFullscreenStep();
         if (mode == FullScreenMode.none) {
           fsProcessing = false;
           return;
