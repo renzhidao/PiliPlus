@@ -1,0 +1,29 @@
+name: Apply Patch (one-off)
+on:
+  push:
+    branches: [patch/actions-20251031-171728]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Apply patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "Applying patch: patches/1.pach"
+          if git apply --whitespace=fix "patches/1.pach"; then
+            echo "Applied (whitespace fix)"
+          else
+            echo "Try 3-way..."
+            git apply --3way "patches/1.pach"
+          fi
+          git add -A
+          git commit -m "Apply patch via GitHub Actions: 1.pach" || echo "No changes to commit"
+          git push
