@@ -842,7 +842,7 @@ class PlPlayerController {
     PlaylistMode looping,
     Duration? seekTo,
     Volume? volume,
-  ) async {
+  }) async {
     // 每次配置时先移除监听
     removeListeners();
     isBuffering.value = false;
@@ -1609,16 +1609,15 @@ class PlPlayerController {
   }) async {
     if (isDesktopPip) return;
 
-    // 在“竖屏全屏第一步”中，如果收到“退出全屏”的请求，改为旋转到横屏
+    // 在“竖屏全屏第一步”里，如果收到“返回/退出”，直接退出到详情页（还原状态），不转横屏
     if (!status && _portraitFsFirstStep && Utils.isMobile) {
-      await landscape();
+      showStatusBar();
       _clearPortraitFullscreenStep();
-      _isFullScreen.value = true;
-      updateSubtitleStyle();
+      toggleFullScreen(false);
       return;
     }
 
-    // 某些 UI 会重复传 status=true；若仍在第一步，则把它视为切到横屏
+    // 某些 UI 会重复传 status=true；若仍在第一步，则把它视为“第二次点击”，旋转到横屏
     if (status && _portraitFsFirstStep && Utils.isMobile) {
       await landscape();
       _clearPortraitFullscreenStep();
