@@ -119,6 +119,10 @@ class PlPlayerController {
   bool _portraitFsFirstStep = false;
   VideoFitType? _fitBeforePortraitFs;
 
+  // 全屏触发防抖
+  static const int _fsDebounceMs = 180;
+  int _lastFsToggleMs = 0;
+
   bool get _deviceIsPortrait {
     final size = Get.mediaQuery.size;
     return size.height >= size.width;
@@ -1172,12 +1176,6 @@ class PlPlayerController {
             const Duration(milliseconds: 10000),
             () {
               Future.delayed(const Duration(milliseconds: 3000), () async {
-                // if (kDebugMode) {
-                //   debugPrint("isBuffering.value: ${isBuffering.value}");
-                // }
-                // if (kDebugMode) {
-                //   debugPrint("_buffered.value: ${_buffered.value}");
-                // }
                 if (isBuffering.value && _buffered.value == Duration.zero) {
                   SmartDialog.showToast(
                     '视频链接打开失败，重试中',
@@ -1234,9 +1232,6 @@ class PlPlayerController {
 
   /// 跳转至指定位置
   Future<void> seekTo(Duration position, {bool isSeek = true}) async {
-    // if (position >= duration.value) {
-    //   position = duration.value - const Duration(milliseconds: 100);
-    // }
     if (_playerCount == 0) {
       return;
     }
@@ -1257,16 +1252,11 @@ class PlPlayerController {
       } catch (e) {
         if (kDebugMode) debugPrint('seek failed: $e');
       }
-      // if (playerStatus.stopped) {
-      //   play();
-      // }
     } else {
-      // if (kDebugMode) debugPrint('seek duration else');
       _timerForSeek?.cancel();
       _timerForSeek = Timer.periodic(const Duration(milliseconds: 200), (
         Timer t,
       ) async {
-        //_timerForSeek = null;
         if (_playerCount == 0) {
           _timerForSeek?.cancel();
           _timerForSeek = null;
@@ -1278,9 +1268,6 @@ class PlPlayerController {
           } catch (e) {
             if (kDebugMode) debugPrint('seek failed: $e');
           }
-          // if (playerStatus.value == PlayerStatus.paused) {
-          //   play();
-          // }
           t.cancel();
           _timerForSeek = null;
         }
@@ -1327,7 +1314,6 @@ class PlPlayerController {
     controls = !hideControls;
     // repeat为true，将从头播放
     if (repeat) {
-      // await seekTo(Duration.zero);
       await seekTo(Duration.zero, isSeek: false);
     }
 
@@ -1336,7 +1322,6 @@ class PlPlayerController {
     audioSessionHandler?.setActive(true);
 
     playerStatus.value = PlayerStatus.playing;
-    // screenManager.setOverlays(false);
   }
 
   /// 暂停播放
@@ -1514,7 +1499,6 @@ class PlPlayerController {
         );
       }
     } else {
-      // if (kDebugMode) debugPrint('$playbackSpeed');
       _longPressStatus.value = val;
       await setPlaybackSpeed(lastPlaybackSpeed);
     }
@@ -1567,14 +1551,12 @@ class PlPlayerController {
     }
     switch (type) {
       case DoubleTapType.left:
-        // 双击左边区域 👈
         onDoubleTapSeekBackward();
         break;
       case DoubleTapType.center:
         onDoubleTapCenter();
         break;
       case DoubleTapType.right:
-        // 双击右边区域 👈
         onDoubleTapSeekForward();
         break;
     }
@@ -1609,11 +1591,20 @@ class PlPlayerController {
   }) async {
     if (isDesktopPip) return;
 
+    // 防抖：避免连续快速点击导致闪动
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastFsToggleMs < _fsDebounceMs) {
+      return;
+    }
+    _lastFsToggleMs = now;
+
     // 在“竖屏全屏第一步”里，如果收到“返回/退出”，直接退出到详情页（还原状态），不转横屏
     if (!status && _portraitFsFirstStep && Utils.isMobile) {
       showStatusBar();
       _clearPortraitFullscreenStep();
-      toggleFullScreen(false);
+      if (_isFullScreen.value) {
+        toggleFullScreen(false);
+      }
       return;
     }
 
@@ -1627,66 +1618,62 @@ class PlPlayerController {
     }
 
     if (isFullScreen.value == status) return;
+    if (fsProcessing) return;
 
-    if (fsProcessing) {
-      return;
-    }
     fsProcessing = true;
+    try {
+      mode ??= this.mode;
+      this.isManualFS = isManualFS;
+      toggleFullScreen(status);
 
-    mode ??= this.mode;
-    this.isManualFS = isManualFS;
-    toggleFullScreen(status);
+      if (status) {
+        if (Utils.isMobile) {
+          hideStatusBar();
 
-    if (status) {
-      if (Utils.isMobile) {
-        hideStatusBar();
+          // 两步全屏：设备竖屏 + 视频横向 => 先竖屏沉浸式全屏并居中显示
+          if (_deviceIsPortrait && !isVertical) {
+            await _enterPortraitFullscreenStep();
+            return;
+          }
 
-        // 两步全屏：设备竖屏 + 视频横向 => 先竖屏沉浸式全屏并居中显示
-        if (_deviceIsPortrait && !isVertical) {
-          await _enterPortraitFullscreenStep();
-          fsProcessing = false;
-          return;
-        }
-
-        if (mode == FullScreenMode.none) {
-          fsProcessing = false;
-          return;
-        }
-        if (mode == FullScreenMode.gravity) {
-          await fullAutoModeForceSensor();
-          fsProcessing = false;
-          return;
-        }
-        late final size = Get.mediaQuery.size;
-        if ((mode == FullScreenMode.vertical ||
-            (mode == FullScreenMode.auto && isVertical) ||
-            (mode == FullScreenMode.ratio &&
-                (isVertical || size.height / size.width < kScreenRatio)))) {
-          await verticalScreenForTwoSeconds();
+          if (mode == FullScreenMode.none) {
+            return;
+          }
+          if (mode == FullScreenMode.gravity) {
+            await fullAutoModeForceSensor();
+            return;
+          }
+          late final size = Get.mediaQuery.size;
+          if ((mode == FullScreenMode.vertical ||
+              (mode == FullScreenMode.auto && isVertical) ||
+              (mode == FullScreenMode.ratio &&
+                  (isVertical || size.height / size.width < kScreenRatio)))) {
+            await verticalScreenForTwoSeconds();
+          } else {
+            await landscape();
+          }
         } else {
-          await landscape();
+          await enterDesktopFullscreen(inAppFullScreen: inAppFullScreen);
         }
       } else {
-        await enterDesktopFullscreen(inAppFullScreen: inAppFullScreen);
-      }
-    } else {
-      if (Utils.isMobile) {
-        showStatusBar();
-        _clearPortraitFullscreenStep();
-        if (mode == FullScreenMode.none) {
-          fsProcessing = false;
-          return;
-        }
-        if (!horizontalScreen) {
-          await verticalScreenForTwoSeconds();
+        if (Utils.isMobile) {
+          showStatusBar();
+          _clearPortraitFullscreenStep();
+          if (mode == FullScreenMode.none) {
+            return;
+          }
+          if (!horizontalScreen) {
+            await verticalScreenForTwoSeconds();
+          } else {
+            await autoScreen();
+          }
         } else {
-          await autoScreen();
+          await exitDesktopFullscreen();
         }
-      } else {
-        await exitDesktopFullscreen();
       }
+    } finally {
+      fsProcessing = false;
     }
-    fsProcessing = false;
   }
 
   void addPositionListener(Function(Duration position) listener) =>
@@ -1735,7 +1722,6 @@ class PlPlayerController {
     if ((durationSeconds.value - position.value).inMilliseconds > 1000) {
       isComplete = false;
     }
-    // 播放状态变化时，更新
 
     if (type == HeartBeatType.status || type == HeartBeatType.completed) {
       await VideoHttp.heartBeat(
@@ -1749,9 +1735,7 @@ class PlPlayerController {
         videoType: videoType ?? _videoType,
       );
       return;
-    }
-    // 正常播放时，间隔5秒更新一次
-    else if (progress - _heartDuration >= 5) {
+    } else if (progress - _heartDuration >= 5) {
       _heartDuration = progress;
       await VideoHttp.heartBeat(
         aid: aid ?? _aid,
@@ -1812,6 +1796,10 @@ class PlPlayerController {
       return;
     }
     _playerCount = 0;
+
+    // 兜底清理两步全屏状态，防止残留 contain
+    _clearPortraitFullscreenStep();
+
     disableAutoEnterPip();
     setPlayCallBack(null);
     dmState.clear();
@@ -1820,18 +1808,8 @@ class PlPlayerController {
     _timer?.cancel();
     _timerForSeek?.cancel();
     _timerForShowingVolume?.cancel();
-    // _position.close();
-    _playerEventSubs?.cancel();
-    // _sliderPosition.close();
-    // _sliderTempPosition.close();
-    // _isSliderMoving.close();
-    // _duration.close();
-    // _buffered.close();
-    // _showControls.close();
-    // _controlsLock.close();
 
-    // playerStatus.close();
-    // dataStatus.status.close();
+    _playerEventSubs?.cancel();
 
     await removeListeners();
     _videoPlayerController?.dispose();
@@ -1909,7 +1887,6 @@ class PlPlayerController {
       var res = await Request().get(
         '/x/player/videoshot',
         queryParameters: {
-          // 'aid': IdUtils.bv2av(_bvid),
           'bvid': _bvid,
           'cid': cid,
           'index': 1,
